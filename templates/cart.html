@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+
+{% block title %}Your Cart | QuickCart{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <h1>Your Cart</h1>
+    <p>Review selected items and adjust quantities.</p>
+</section>
+
+<section class="cart-layout">
+    <div id="cart-items" class="cart-items"></div>
+
+    <aside class="cart-summary">
+        <h2>Order Summary</h2>
+        <div class="summary-row">
+            <span>Total Items</span>
+            <strong id="summary-count">{{ cart.count }}</strong>
+        </div>
+        <div class="summary-row total">
+            <span>Total Price</span>
+            <strong id="summary-total">${{ "%.2f"|format(cart.total) }}</strong>
+        </div>
+        <a href="{{ url_for('index') }}" class="secondary-btn">Continue Shopping</a>
+    </aside>
+</section>
+
+<script>
+    window.isCartPage = true;
+</script>
+{% endblock %}

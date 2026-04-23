@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+
+{% block title %}Products | QuickCart{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">Simple Flask Store</p>
+        <h1>Browse popular products and add them to your cart.</h1>
+        <p class="hero-copy">A lightweight e-commerce demo built with Flask, Socket.IO, HTML, CSS, and JavaScript.</p>
+    </div>
+</section>
+
+<section class="product-grid">
+    {% for product in products %}
+    <article class="product-card">
+        <img src="{{ product.image }}" alt="{{ product.name }}">
+        <div class="product-content">
+            <h2>{{ product.name }}</h2>
+            <p class="price">${{ "%.2f"|format(product.price) }}</p>
+            <button class="primary-btn add-to-cart-btn" data-product-id="{{ product.id }}">
+                Add to cart
+            </button>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+{% endblock %}
