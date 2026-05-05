@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ product.name }} | QuickCart{% endblock %}
+
+{% block content %}
+<section class="product-detail">
+    <div class="product-detail-grid">
+        <div class="product-image">
+            <img src="{{ product.image }}" alt="{{ product.name }}">
+        </div>
+        <div class="product-info">
+            <span class="product-category">{{ product.category }}</span>
+            <h1>{{ product.name }}</h1>
+            <p class="price">${{ "%.2f"|format(product.price) }}</p>
+            <p class="product-description">{{ product.description }}</p>
+            <button class="primary-btn add-to-cart-btn" data-product-id="{{ product.id }}">
+                Add to cart
+            </button>
+            <a href="{{ url_for('index') }}" class="secondary-btn" style="margin-top: 1rem;">Back to Products</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -11,18 +11,38 @@
     </div>
 </section>
 
+<section class="ai-section">
+    <div class="ai-container">
+        <h2>🤖 AI Product Assistant</h2>
+        <p>Ask for recommendations or tell us what you're looking for!</p>
+        <div class="ai-input-wrapper">
+            <input type="text" id="ai-query" placeholder="e.g., 'Show me electronics' or 'I need a bag'" class="ai-input">
+            <button id="ai-submit" class="primary-btn ai-btn">Get Recommendations</button>
+        </div>
+        <div id="ai-results" class="ai-results"></div>
+    </div>
+</section>
+
 <section class="product-grid">
     {% for product in products %}
     <article class="product-card">
-        <img src="{{ product.image }}" alt="{{ product.name }}">
+        <a href="{{ url_for('product_detail', product_id=product.id) }}">
+            <img src="{{ product.image }}" alt="{{ product.name }}">
+        </a>
         <div class="product-content">
-            <h2>{{ product.name }}</h2>
+            <span class="product-category">{{ product.category }}</span>
+            <h2><a href="{{ url_for('product_detail', product_id=product.id) }}">{{ product.name }}</a></h2>
             <p class="price">${{ "%.2f"|format(product.price) }}</p>
             <button class="primary-btn add-to-cart-btn" data-product-id="{{ product.id }}">
                 Add to cart
             </button>
         </div>
     </article>
+    {% else %}
+    <div class="empty-state">
+        <h3>No products found</h3>
+        <p>Try a different search term.</p>
+    </div>
     {% endfor %}
 </section>
 {% endblock %}

@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, render_template, request, session
 from flask_socketio import SocketIO, emit, join_room
+import random
 
 
 app = Flask(__name__)
@@ -13,24 +14,48 @@ PRODUCTS = [
         "name": "Classic Sneakers",
         "price": 59.99,
         "image": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
+        "category": "Footwear",
+        "description": "Timeless design meets comfort. Perfect for everyday wear.",
     },
     {
         "id": 2,
         "name": "Leather Backpack",
         "price": 84.50,
         "image": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=80",
+        "category": "Bags",
+        "description": "Premium leather backpack with multiple compartments for your essentials.",
     },
     {
         "id": 3,
         "name": "Minimal Watch",
         "price": 120.00,
         "image": "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=900&q=80",
+        "category": "Accessories",
+        "description": "Elegant and minimalist design. The perfect accessory for any outfit.",
     },
     {
         "id": 4,
         "name": "Wireless Headphones",
         "price": 94.99,
         "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80",
+        "category": "Electronics",
+        "description": "Crystal clear sound with noise cancellation. Experience audio like never before.",
+    },
+    {
+        "id": 5,
+        "name": "Denim Jacket",
+        "price": 79.99,
+        "image": "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=900&q=80",
+        "category": "Clothing",
+        "description": "Classic denim jacket with a modern fit. A wardrobe staple.",
+    },
+    {
+        "id": 6,
+        "name": "Smart Watch",
+        "price": 199.99,
+        "image": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=80",
+        "category": "Electronics",
+        "description": "Stay connected with this feature-packed smartwatch.",
     },
 ]
 
@@ -79,12 +104,35 @@ def broadcast_cart_update():
 
 @app.route("/")
 def index():
-    return render_template("index.html", products=PRODUCTS, cart=cart_summary())
+    search_query = request.args.get("q", "")
+    filtered_products = PRODUCTS
+    if search_query:
+        search_query_lower = search_query.lower()
+        filtered_products = [
+            p for p in PRODUCTS
+            if search_query_lower in p["name"].lower()
+            or search_query_lower in p["category"].lower()
+            or search_query_lower in p["description"].lower()
+        ]
+    return render_template("index.html", products=filtered_products, cart=cart_summary(), search_query=search_query)
+
+
+@app.route("/product/<int:product_id>")
+def product_detail(product_id):
+    product = next((p for p in PRODUCTS if p["id"] == product_id), None)
+    if not product:
+        return render_template("404.html"), 404
+    return render_template("product.html", product=product, cart=cart_summary())
 
 
 @app.route("/cart")
 def cart_page():
     return render_template("cart.html", cart=cart_summary())
+
+
+@app.route("/checkout")
+def checkout_page():
+    return render_template("checkout.html", cart=cart_summary())
 
 
 @app.route("/api/cart", methods=["GET"])
@@ -127,6 +175,57 @@ def update_cart():
     session.modified = True
     broadcast_cart_update()
     return jsonify(cart_summary())
+
+
+@app.route("/api/cart/clear", methods=["POST"])
+def clear_cart():
+    session["cart"] = {}
+    session.modified = True
+    broadcast_cart_update()
+    return jsonify(cart_summary())
+
+
+@app.route("/api/ai/recommend", methods=["POST"])
+def ai_recommend():
+    payload = request.get_json(silent=True) or {}
+    query = payload.get("query", "")
+    
+    if not query:
+        random_products = random.sample(PRODUCTS, min(3, len(PRODUCTS)))
+        return jsonify({"recommendations": random_products, "message": "Here are some popular products!"})
+    
+    query_lower = query.lower()
+    relevant_products = [
+        p for p in PRODUCTS
+        if query_lower in p["name"].lower()
+        or query_lower in p["category"].lower()
+        or query_lower in p["description"].lower()
+    ]
+    
+    if not relevant_products:
+        relevant_products = random.sample(PRODUCTS, min(3, len(PRODUCTS)))
+        message = f"Couldn't find exact matches for '{query}'. Here are some suggestions!"
+    else:
+        message = f"Here are some products related to '{query}'!"
+    
+    return jsonify({
+        "recommendations": relevant_products[:3],
+        "message": message
+    })
+
+
+@app.route("/api/checkout", methods=["POST"])
+def mock_checkout():
+    payload = request.get_json(silent=True) or {}
+    order_id = f"ORD-{random.randint(10000, 99999)}"
+    session["cart"] = {}
+    session.modified = True
+    broadcast_cart_update()
+    return jsonify({
+        "success": True,
+        "order_id": order_id,
+        "message": "Order placed successfully! This is a mock checkout."
+    })
 
 
 @socketio.on("connect")

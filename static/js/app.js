@@ -20,7 +20,7 @@ function showToast(message) {
     window.clearTimeout(showToast.timeoutId);
     showToast.timeoutId = window.setTimeout(() => {
         toast.classList.remove("show");
-    }, 1800);
+    }, 2000);
 }
 
 function updateHeaderCount() {
@@ -78,6 +78,41 @@ function renderCartPage() {
         .join("");
 }
 
+function renderCheckoutPage() {
+    if (!window.isCheckoutPage) {
+        return;
+    }
+
+    const itemsContainer = document.querySelector("#checkout-items");
+    const countNode = document.querySelector("#checkout-count");
+    const totalNode = document.querySelector("#checkout-total");
+
+    if (!itemsContainer) {
+        return;
+    }
+
+    countNode.textContent = cartState.count;
+    totalNode.textContent = formatCurrency(cartState.total);
+
+    if (!cartState.items.length) {
+        itemsContainer.innerHTML = `
+            <p style="color: #6b7280;">Your cart is empty.</p>
+        `;
+        return;
+    }
+
+    itemsContainer.innerHTML = cartState.items
+        .map(
+            (item) => `
+                <div class="checkout-item">
+                    <span>${item.name} × ${item.quantity}</span>
+                    <strong>${formatCurrency(item.subtotal)}</strong>
+                </div>
+            `
+        )
+        .join("");
+}
+
 async function postJson(url, payload) {
     const response = await fetch(url, {
         method: "POST",
@@ -96,6 +131,7 @@ async function addToCart(productId) {
     cartState = await postJson("/api/cart/add", { product_id: productId });
     updateHeaderCount();
     renderCartPage();
+    renderCheckoutPage();
     showToast("Added to cart");
 }
 
@@ -106,6 +142,68 @@ async function updateCartQuantity(productId, nextQuantity) {
     });
     updateHeaderCount();
     renderCartPage();
+    renderCheckoutPage();
+}
+
+async function clearCart() {
+    cartState = await postJson("/api/cart/clear", {});
+    updateHeaderCount();
+    renderCartPage();
+    showToast("Cart cleared");
+}
+
+async function getAiRecommendations(query) {
+    const resultsContainer = document.querySelector("#ai-results");
+    if (!resultsContainer) return;
+
+    resultsContainer.innerHTML = `<p style="opacity: 0.8;">Getting recommendations...</p>`;
+
+    try {
+        const data = await postJson("/api/ai/recommend", { query: query });
+        
+        resultsContainer.innerHTML = `
+            <p class="ai-message">${data.message}</p>
+            <div class="ai-products">
+                ${data.recommendations.map(product => `
+                    <div class="product-card">
+                        <img src="${product.image}" alt="${product.name}">
+                        <div class="product-content">
+                            <span class="product-category">${product.category}</span>
+                            <h3>${product.name}</h3>
+                            <p class="price">${formatCurrency(product.price)}</p>
+                            <button class="primary-btn add-to-cart-btn" data-product-id="${product.id}">Add to cart</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } catch (error) {
+        resultsContainer.innerHTML = `<p style="opacity: 0.8;">Could not get recommendations. Please try again.</p>`;
+    }
+}
+
+async function placeOrder() {
+    if (!cartState.items.length) {
+        showToast("Your cart is empty!");
+        return;
+    }
+
+    try {
+        const data = await postJson("/api/checkout", {});
+        const modal = document.querySelector("#order-success-modal");
+        const messageNode = document.querySelector("#order-message");
+        
+        if (modal && messageNode) {
+            messageNode.textContent = `${data.message} Order ID: ${data.order_id}`;
+            modal.style.display = "flex";
+        }
+        
+        cartState = { items: [], total: 0, count: 0 };
+        updateHeaderCount();
+        renderCheckoutPage();
+    } catch (error) {
+        showToast("Could not place order. Please try again.");
+    }
 }
 
 document.addEventListener("click", async (event) => {
@@ -142,13 +240,48 @@ document.addEventListener("click", async (event) => {
             showToast("Could not update cart");
         }
     }
+
+    const clearCartBtn = event.target.closest("#clear-cart-btn");
+    if (clearCartBtn) {
+        try {
+            await clearCart();
+        } catch (error) {
+            showToast("Could not clear cart");
+        }
+    }
+
+    const aiSubmitBtn = event.target.closest("#ai-submit");
+    if (aiSubmitBtn) {
+        const queryInput = document.querySelector("#ai-query");
+        if (queryInput) {
+            await getAiRecommendations(queryInput.value);
+        }
+    }
+});
+
+document.addEventListener("keypress", async (event) => {
+    if (event.key === "Enter") {
+        const aiInput = event.target.closest("#ai-query");
+        if (aiInput) {
+            await getAiRecommendations(aiInput.value);
+        }
+    }
+});
+
+document.addEventListener("submit", async (event) => {
+    if (event.target.closest("#checkout-form")) {
+        event.preventDefault();
+        await placeOrder();
+    }
 });
 
 socket.on("cart_updated", (data) => {
     cartState = data;
     updateHeaderCount();
     renderCartPage();
+    renderCheckoutPage();
 });
 
 updateHeaderCount();
 renderCartPage();
+renderCheckoutPage();

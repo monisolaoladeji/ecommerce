@@ -11,6 +11,10 @@
     <header class="site-header">
         <div class="container nav">
             <a href="{{ url_for('index') }}" class="brand">QuickCart</a>
+            <form class="search-form" action="{{ url_for('index') }}" method="GET">
+                <input type="text" name="q" placeholder="Search products..." class="search-input" value="{{ search_query if search_query else '' }}">
+                <button type="submit" class="search-btn">Search</button>
+            </form>
             <nav>
                 <a href="{{ url_for('index') }}">Products</a>
                 <a href="{{ url_for('cart_page') }}">Cart (<span id="cart-count">{{ cart.count }}</span>)</a>
@@ -24,6 +28,7 @@
 
     <script>
         window.initialCart = {{ cart | tojson }};
+        window.products = {{ products | tojson if products else '[]' }};
     </script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
