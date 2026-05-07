@@ -1,4 +1,4 @@
-const socket = io();
+const socket = io('https://ecommerce-1-iwyj.onrender.com');
 let cartState = window.initialCart || { items: [], total: 0, count: 0 };
 
 function formatCurrency(value) {
@@ -114,7 +114,7 @@ function renderCheckoutPage() {
 }
 
 async function postJson(url, payload) {
-    const response = await fetch(url, {
+    const response = await fetch("https://ecommerce-1-iwyj.onrender.com" + url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

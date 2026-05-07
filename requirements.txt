@@ -1,3 +1,7 @@
 Flask
+flask-cors
 Flask-SocketIO
 gunicorn
+python-dotenv
+pymongo
+dnspython

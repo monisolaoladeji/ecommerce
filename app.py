@@ -1,14 +1,31 @@
-from flask import Flask, jsonify, render_template, request, session
-from flask_socketio import SocketIO, emit, join_room
+import os
 import random
+from dotenv import load_dotenv
+from flask import Flask, jsonify, render_template, request, session
+from flask_cors import CORS
+from flask_socketio import SocketIO, emit, join_room
+from pymongo import MongoClient
 
+
+load_dotenv()
+
+MONGO_URI = os.environ.get(
+    "MONGO_URI",
+    "mongodb+srv://monisola:<db_password>@cluster0.eaer1cp.mongodb.net/?appName=Cluster0"
+)
+MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "ecommerce_db")
+mongo_client = MongoClient(MONGO_URI)
+mongo_db = mongo_client[MONGO_DB_NAME]
+products_collection = mongo_db["products"]
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "dev-secret-key"
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key-change-this-in-production")
 socketio = SocketIO(app, manage_session=False)
 
+CORS(app)
 
-PRODUCTS = [
+
+DEFAULT_PRODUCTS = [
     {
         "id": 1,
         "name": "Classic Sneakers",
@@ -58,6 +75,20 @@ PRODUCTS = [
         "description": "Stay connected with this feature-packed smartwatch.",
     },
 ]
+
+
+def init_db():
+    products_collection.create_index("id", unique=True)
+    if products_collection.count_documents({}) == 0:
+        products_collection.insert_many(DEFAULT_PRODUCTS)
+
+
+def load_products():
+    return list(products_collection.find({}))
+
+
+init_db()
+PRODUCTS = load_products()
 
 
 def get_cart():
@@ -238,4 +269,4 @@ def handle_connect():
 
 
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
+    socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
