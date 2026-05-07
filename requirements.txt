@@ -3,5 +3,5 @@ flask-cors
 Flask-SocketIO
 gunicorn
 python-dotenv
-pymongo
+pymongo[srv]
 dnspython
