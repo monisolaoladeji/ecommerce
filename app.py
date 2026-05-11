@@ -11,7 +11,7 @@ load_dotenv()
 
 MONGO_URI = os.environ.get(
     "MONGO_URI",
-    "mongodb+srv://monisola:<db_password>@cluster0.eaer1cp.mongodb.net/?appName=Cluster0"
+    "mongodb+srv://monisola:portfolio2026@cluster0.eaer1cp.mongodb.net/?appName=Cluster0"
 )
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "ecommerce_db")
 mongo_client = MongoClient(MONGO_URI)
