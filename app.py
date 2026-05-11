@@ -84,7 +84,8 @@ def init_db():
 
 
 def load_products():
-    return list(products_collection.find({}))
+    products = list(products_collection.find({}, {"_id": 0}))
+    return [dict(product) for product in products]
 
 
 init_db()
