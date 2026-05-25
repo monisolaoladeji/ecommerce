@@ -1,4 +1,6 @@
-const socket = io('https://ecommerce-1-iwyj.onrender.com');
+// Get API URL from environment variable or use default
+const API_URL = process.env.VITE_API_URL || window.API_URL || 'https://ecommerce-1-iwyj.onrender.com';
+const socket = io(API_URL);
 let cartState = window.initialCart || { items: [], total: 0, count: 0 };
 
 function formatCurrency(value) {
