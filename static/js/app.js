@@ -1,6 +1,4 @@
-// Get API URL from environment variable or use default
-const API_URL = process.env.VITE_API_URL || window.API_URL || 'https://ecommerce-1-iwyj.onrender.com';
-const socket = io(API_URL);
+// Use relative paths for Vercel deployment
 let cartState = window.initialCart || { items: [], total: 0, count: 0 };
 
 function formatCurrency(value) {
@@ -9,16 +7,13 @@ function formatCurrency(value) {
 
 function showToast(message) {
     let toast = document.querySelector(".toast");
-
     if (!toast) {
         toast = document.createElement("div");
         toast.className = "toast";
         document.body.appendChild(toast);
     }
-
     toast.textContent = message;
     toast.classList.add("show");
-
     window.clearTimeout(showToast.timeoutId);
     showToast.timeoutId = window.setTimeout(() => {
         toast.classList.remove("show");
@@ -33,21 +28,14 @@ function updateHeaderCount() {
 }
 
 function renderCartPage() {
-    if (!window.isCartPage) {
-        return;
-    }
-
+    if (!window.isCartPage) return;
     const itemsContainer = document.querySelector("#cart-items");
     const summaryCount = document.querySelector("#summary-count");
     const summaryTotal = document.querySelector("#summary-total");
-
-    if (!itemsContainer) {
-        return;
-    }
-
+    if (!itemsContainer) return;
     summaryCount.textContent = cartState.count;
     summaryTotal.textContent = formatCurrency(cartState.total);
-
+    
     if (!cartState.items.length) {
         itemsContainer.innerHTML = `
             <div class="empty-state">
@@ -57,75 +45,55 @@ function renderCartPage() {
         `;
         return;
     }
-
-    itemsContainer.innerHTML = cartState.items
-        .map(
-            (item) => `
-                <article class="cart-item">
-                    <img src="${item.image}" alt="${item.name}">
-                    <div>
-                        <h3>${item.name}</h3>
-                        <div class="cart-meta">Price: ${formatCurrency(item.price)}</div>
-                        <div class="cart-meta">Subtotal: ${formatCurrency(item.subtotal)}</div>
-                        <div class="qty-controls">
-                            <button class="qty-btn" data-product-id="${item.id}" data-action="decrease">-</button>
-                            <strong>${item.quantity}</strong>
-                            <button class="qty-btn" data-product-id="${item.id}" data-action="increase">+</button>
-                        </div>
-                    </div>
-                    <strong>${formatCurrency(item.subtotal)}</strong>
-                </article>
-            `
-        )
-        .join("");
+    
+    itemsContainer.innerHTML = cartState.items.map(item => `
+        <article class="cart-item">
+            <img src="${item.image}" alt="${item.name}">
+            <div>
+                <h3>${item.name}</h3>
+                <div class="cart-meta">Price: ${formatCurrency(item.price)}</div>
+                <div class="cart-meta">Subtotal: ${formatCurrency(item.subtotal)}</div>
+                <div class="qty-controls">
+                    <button class="qty-btn" data-product-id="${item.id}" data-action="decrease">-</button>
+                    <strong>${item.quantity}</strong>
+                    <button class="qty-btn" data-product-id="${item.id}" data-action="increase">+</button>
+                </div>
+            </div>
+            <strong>${formatCurrency(item.subtotal)}</strong>
+        </article>
+    `).join("");
 }
 
 function renderCheckoutPage() {
-    if (!window.isCheckoutPage) {
-        return;
-    }
-
+    if (!window.isCheckoutPage) return;
     const itemsContainer = document.querySelector("#checkout-items");
     const countNode = document.querySelector("#checkout-count");
     const totalNode = document.querySelector("#checkout-total");
-
-    if (!itemsContainer) {
-        return;
-    }
-
+    if (!itemsContainer) return;
     countNode.textContent = cartState.count;
     totalNode.textContent = formatCurrency(cartState.total);
-
+    
     if (!cartState.items.length) {
-        itemsContainer.innerHTML = `
-            <p style="color: #6b7280;">Your cart is empty.</p>
-        `;
+        itemsContainer.innerHTML = `<p style="color: #6b7280;">Your cart is empty.</p>`;
         return;
     }
-
-    itemsContainer.innerHTML = cartState.items
-        .map(
-            (item) => `
-                <div class="checkout-item">
-                    <span>${item.name} × ${item.quantity}</span>
-                    <strong>${formatCurrency(item.subtotal)}</strong>
-                </div>
-            `
-        )
-        .join("");
+    
+    itemsContainer.innerHTML = cartState.items.map(item => `
+        <div class="checkout-item">
+            <span>${item.name} × ${item.quantity}</span>
+            <strong>${formatCurrency(item.subtotal)}</strong>
+        </div>
+    `).join("");
 }
 
 async function postJson(url, payload) {
-    const response = await fetch("https://ecommerce-1-iwyj.onrender.com" + url, {
+    const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
     });
-
-    if (!response.ok) {
-        throw new Error("Request failed.");
-    }
-
+    
+    if (!response.ok) throw new Error("Request failed.");
     return response.json();
 }
 
@@ -157,12 +125,11 @@ async function clearCart() {
 async function getAiRecommendations(query) {
     const resultsContainer = document.querySelector("#ai-results");
     if (!resultsContainer) return;
-
+    
     resultsContainer.innerHTML = `<p style="opacity: 0.8;">Getting recommendations...</p>`;
-
+    
     try {
         const data = await postJson("/api/ai/recommend", { query: query });
-        
         resultsContainer.innerHTML = `
             <p class="ai-message">${data.message}</p>
             <div class="ai-products">
@@ -189,7 +156,7 @@ async function placeOrder() {
         showToast("Your cart is empty!");
         return;
     }
-
+    
     try {
         const data = await postJson("/api/checkout", {});
         const modal = document.querySelector("#order-success-modal");
@@ -213,7 +180,7 @@ document.addEventListener("click", async (event) => {
     if (addButton) {
         const productId = Number(addButton.dataset.productId);
         addButton.disabled = true;
-
+        
         try {
             await addToCart(productId);
         } catch (error) {
@@ -222,27 +189,22 @@ document.addEventListener("click", async (event) => {
             addButton.disabled = false;
         }
     }
-
+    
     const qtyButton = event.target.closest(".qty-btn");
     if (qtyButton) {
         const productId = Number(qtyButton.dataset.productId);
         const item = cartState.items.find((entry) => entry.id === productId);
-        if (!item) {
-            return;
-        }
-
-        const nextQuantity =
-            qtyButton.dataset.action === "increase"
-                ? item.quantity + 1
-                : item.quantity - 1;
-
+        if (!item) return;
+        
+        const nextQuantity = qtyButton.dataset.action === "increase" ? item.quantity + 1 : item.quantity - 1;
+        
         try {
             await updateCartQuantity(productId, nextQuantity);
         } catch (error) {
             showToast("Could not update cart");
         }
     }
-
+    
     const clearCartBtn = event.target.closest("#clear-cart-btn");
     if (clearCartBtn) {
         try {
@@ -251,22 +213,18 @@ document.addEventListener("click", async (event) => {
             showToast("Could not clear cart");
         }
     }
-
+    
     const aiSubmitBtn = event.target.closest("#ai-submit");
     if (aiSubmitBtn) {
         const queryInput = document.querySelector("#ai-query");
-        if (queryInput) {
-            await getAiRecommendations(queryInput.value);
-        }
+        if (queryInput) await getAiRecommendations(queryInput.value);
     }
 });
 
 document.addEventListener("keypress", async (event) => {
     if (event.key === "Enter") {
         const aiInput = event.target.closest("#ai-query");
-        if (aiInput) {
-            await getAiRecommendations(aiInput.value);
-        }
+        if (aiInput) await getAiRecommendations(aiInput.value);
     }
 });
 
@@ -277,13 +235,7 @@ document.addEventListener("submit", async (event) => {
     }
 });
 
-socket.on("cart_updated", (data) => {
-    cartState = data;
-    updateHeaderCount();
-    renderCartPage();
-    renderCheckoutPage();
-});
-
 updateHeaderCount();
 renderCartPage();
 renderCheckoutPage();
+

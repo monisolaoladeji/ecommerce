@@ -1,11 +1,8 @@
 import os
-import random
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, session
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit, join_room
 from pymongo import MongoClient
-
 
 load_dotenv()
 
@@ -20,10 +17,7 @@ products_collection = mongo_db["products"]
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key-change-this-in-production")
-socketio = SocketIO(app, manage_session=False)
-
 CORS(app)
-
 
 DEFAULT_PRODUCTS = [
     {
@@ -76,36 +70,33 @@ DEFAULT_PRODUCTS = [
     },
 ]
 
-
 def init_db():
     products_collection.create_index("id", unique=True)
     if products_collection.count_documents({}) == 0:
         products_collection.insert_many(DEFAULT_PRODUCTS)
 
-
 def load_products():
     products = list(products_collection.find({}, {"_id": 0}))
-    return [dict(product) for product in products]
-
+    return products
 
 init_db()
 PRODUCTS = load_products()
 
-
 def get_cart():
     return session.setdefault("cart", {})
-
 
 def build_cart_items():
     cart = get_cart()
     items = []
     total = 0.0
-
-    for product in PRODUCTS:
-        quantity = cart.get(str(product["id"]), 0)
-        if quantity <= 0:
+    product_dict = {p["id"]: p for p in PRODUCTS}
+    
+    for product_id_str, quantity in cart.items():
+        product_id = int(product_id_str)
+        product = product_dict.get(product_id)
+        if not product:
             continue
-
+        
         subtotal = round(product["price"] * quantity, 2)
         total += subtotal
         items.append(
@@ -118,21 +109,13 @@ def build_cart_items():
                 "subtotal": subtotal,
             }
         )
-
+    
     return items, round(total, 2)
-
 
 def cart_summary():
     items, total = build_cart_items()
     count = sum(item["quantity"] for item in items)
     return {"items": items, "total": total, "count": count}
-
-
-def broadcast_cart_update():
-    room = session.get("cart_room")
-    if room:
-        socketio.emit("cart_updated", cart_summary(), to=room, namespace="/")
-
 
 @app.route("/")
 def index():
@@ -148,7 +131,6 @@ def index():
         ]
     return render_template("index.html", products=filtered_products, cart=cart_summary(), search_query=search_query)
 
-
 @app.route("/product/<int:product_id>")
 def product_detail(product_id):
     product = next((p for p in PRODUCTS if p["id"] == product_id), None)
@@ -156,69 +138,59 @@ def product_detail(product_id):
         return render_template("404.html"), 404
     return render_template("product.html", product=product, cart=cart_summary())
 
-
 @app.route("/cart")
 def cart_page():
     return render_template("cart.html", cart=cart_summary())
-
 
 @app.route("/checkout")
 def checkout_page():
     return render_template("checkout.html", cart=cart_summary())
 
-
 @app.route("/api/cart", methods=["GET"])
 def get_cart_data():
     return jsonify(cart_summary())
-
 
 @app.route("/api/cart/add", methods=["POST"])
 def add_to_cart():
     payload = request.get_json(silent=True) or {}
     product_id = str(payload.get("product_id", ""))
-    cart = get_cart()
-
-    if product_id not in {str(product["id"]) for product in PRODUCTS}:
+    
+    product_ids = [str(p["id"]) for p in PRODUCTS]
+    if product_id not in product_ids:
         return jsonify({"error": "Product not found."}), 404
-
+    
+    cart = get_cart()
     cart[product_id] = cart.get(product_id, 0) + 1
     session["cart"] = cart
-    session.modified = True
-    broadcast_cart_update()
     return jsonify(cart_summary())
-
 
 @app.route("/api/cart/update", methods=["POST"])
 def update_cart():
     payload = request.get_json(silent=True) or {}
     product_id = str(payload.get("product_id", ""))
     quantity = int(payload.get("quantity", 1))
-    cart = get_cart()
-
-    if product_id not in {str(product["id"]) for product in PRODUCTS}:
+    
+    product_ids = [str(p["id"]) for p in PRODUCTS]
+    if product_id not in product_ids:
         return jsonify({"error": "Product not found."}), 404
-
+    
+    cart = get_cart()
     if quantity <= 0:
         cart.pop(product_id, None)
     else:
         cart[product_id] = quantity
-
+    
     session["cart"] = cart
-    session.modified = True
-    broadcast_cart_update()
     return jsonify(cart_summary())
-
 
 @app.route("/api/cart/clear", methods=["POST"])
 def clear_cart():
     session["cart"] = {}
-    session.modified = True
-    broadcast_cart_update()
     return jsonify(cart_summary())
-
 
 @app.route("/api/ai/recommend", methods=["POST"])
 def ai_recommend():
+    import random
     payload = request.get_json(silent=True) or {}
     query = payload.get("query", "")
     
@@ -245,29 +217,16 @@ def ai_recommend():
         "message": message
     })
 
-
 @app.route("/api/checkout", methods=["POST"])
 def mock_checkout():
-    payload = request.get_json(silent=True) or {}
+    import random
     order_id = f"ORD-{random.randint(10000, 99999)}"
     session["cart"] = {}
-    session.modified = True
-    broadcast_cart_update()
     return jsonify({
         "success": True,
         "order_id": order_id,
         "message": "Order placed successfully! This is a mock checkout."
     })
 
-
-@socketio.on("connect")
-def handle_connect():
-    room = request.sid
-    session["cart_room"] = room
-    session.modified = True
-    join_room(room)
-    emit("cart_updated", cart_summary(), to=room)
-
-
 if __name__ == "__main__":
-    socketio.run(app, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
